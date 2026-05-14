@@ -12,9 +12,19 @@ set(gcf, 'Position', [100, 100, 1600, 1000]);
 for k = 1:6
     subplot(2, 3, k);
     surf(x_vals, y_vals, M_x_all(:, :, k));
-    xlabel(labels.x_axis);
-    ylabel(labels.y_axis);
-    zlabel(get_zlabel(k));
+
+    % X-akselin label (kierretty ja keskitetty)
+    xh = xlabel(labels.x_axis);
+    set(xh, 'Rotation', 22, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
+
+    % Y-akselin label (kierretty ja keskitetty)
+    yh = ylabel(labels.y_axis);
+    set(yh, 'Rotation', -39, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
+
+    % Z-akselin label
+    zh = zlabel(get_zlabel(k));
+    set(zh, 'Rotation', 90, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
+
     title(sprintf('x(%d) - %s', k, labels.force_names{k}));
     colorbar;
 end

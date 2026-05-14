@@ -5,7 +5,7 @@ global F_1 Fg_1 Fg_2
 global A H K J
 
 % Parametrien vektorit
-x_G_plot_values = linspace(1, 3, 20);
+x_G_plot_values = linspace(1.8, 3, 20);
 y_B_plot_values = linspace(1, 3, 20);
 
 % Alusta tulostaulukko (kaikki 6 M_x alkiota eri G ja B arvoilla)

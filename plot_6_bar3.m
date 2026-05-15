@@ -12,7 +12,7 @@ ylabel(cb, get_zlabel(1));
 xlabel('G-indeksi');
 ylabel('B-indeksi');
 zlabel(get_zlabel(1));
-title('6. 3D-PALKIT (Bar3) - Diskreetit arvot');
+title(get_subplot_title(1));
 grid on;
 
 end

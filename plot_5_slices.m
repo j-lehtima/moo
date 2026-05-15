@@ -20,7 +20,7 @@ end
 
 xlabel(labels.x_axis);
 ylabel(get_zlabel(1));
-title('5. VIIPALEET (Slices) - M_x(1) herkkyyden analyysi');
+title(get_subplot_title(1));
 legend;
 grid on;
 hold off;

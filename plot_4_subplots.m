@@ -25,7 +25,7 @@ for k = 1:6
     zh = zlabel(get_zlabel(k));
     set(zh, 'Rotation', 90, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
 
-    title(sprintf('x(%d) - %s', k, labels.force_names{k}));
+    title(get_subplot_title(k));
     colorbar;
 end
 

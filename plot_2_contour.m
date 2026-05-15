@@ -10,7 +10,7 @@ cb = colorbar;
 ylabel(cb, get_zlabel(1));
 xlabel(labels.x_axis);
 ylabel(labels.y_axis);
-title('2. KONTUURIT (Contour) - M_x(1) tasokäyrät');
+title(get_subplot_title(1));
 grid on;
 hold on;
 

@@ -10,7 +10,7 @@ cb = colorbar;
 ylabel(cb, get_zlabel(1));
 xlabel(labels.x_axis);
 ylabel(labels.y_axis);
-title('3. VÄRIKARTTA (Imagesc) - M_x(1) lämpökartta');
+title(get_subplot_title(1));
 axis xy;
 grid on;
 

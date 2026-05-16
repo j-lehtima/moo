@@ -7,6 +7,10 @@
 %
 % ======================================================================
 
+% Tyhjennä välimuisti jotta uudet objektiivit ladataan oikein
+clear all;
+close all;
+
 fprintf('\n%s\n', repmat('=', 1, 70));
 fprintf('MONITAVOITEOPTIMOINTIKEHIKKO - MOO FRAMEWORK v2.0\n');
 fprintf('%s\n', repmat('=', 1, 70));
@@ -264,3 +268,4 @@ fprintf('    → ObjectiveFunctions.m\n\n');
 
 
 
+pause;  % Odottaa Enter-painallusta ennen sulkeutumista

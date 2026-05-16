@@ -81,12 +81,11 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     % Piirrä kuvaajia Octave-yhteensopiavasti
     hold off;
     x_positions = 1:size(obj_vals_norm, 1);
-    colors_map = [0.2 0.4 0.8;   % Sininen
-                   0.8 0.2 0.2;   % Punainen
-                   0.2 0.8 0.2;   % Vihreä
-                   0.8 0.8 0.2];  % Keltainen
     
-    for obj_idx = 1:min(objectives.n_objectives, size(colors_map, 1))
+    % Generoi värit dynaamisesti tavoitteiden lukumäärän perusteella
+    colors_map = lines(n_objectives);
+    
+    for obj_idx = 1:n_objectives
         color = colors_map(obj_idx, :);
         plot(x_positions, obj_vals_norm(:, obj_idx), 'o-', 'Color', color, ...
             'LineWidth', 2.5, 'MarkerSize', 9, 'DisplayName', objectives.names{obj_idx});

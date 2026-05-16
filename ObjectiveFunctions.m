@@ -37,11 +37,11 @@ classdef ObjectiveFunctions
 
             % Tavoitteiden nimet (käytetään visualisaatioissa)
             obj.names = {
-                'Aisa, F_a (N)'
-                'Ilmajousi, F_b (N)'
-                'Aisan rungon niveltappi, F_c (N)'
-                'Lehtijousi etunivel, F_d (N)',
-                'Lehtijousi keskinivel, F_e (N)',
+                'Aisa, F_a (N)';
+                'Ilmajousi, F_b (N)';
+                'Aisan rungon niveltappi, F_c (N)';
+                'Lehtijousi etunivel, F_d (N)';
+                'Lehtijousi keskinivel, F_e (N)';
                 'Lehtijousi takanivel, F_f (N)'
             };
             

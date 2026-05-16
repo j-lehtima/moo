@@ -1,58 +1,154 @@
-% Import vakio globaalit
-run('constants.m');
+%% ======================================================================
+% MONITAVOITEOPTIMOINTIKEHIKKO - MOO FRAMEWORK v2.0
+% ======================================================================
+%
+% 🎯 KAIKKI SUUNNITTELUMUUTTUJAT MÄÄRITELLÄÄN YHDESSÄ PAIKASSA:
+%    design_variables_config.m
+%
+% ======================================================================
 
-global F_1 Fg_1 Fg_2
-global A H K J
+fprintf('\n%s\n', repmat('=', 1, 70));
+fprintf('MONITAVOITEOPTIMOINTIKEHIKKO - MOO FRAMEWORK v2.0\n');
+fprintf('%s\n', repmat('=', 1, 70));
 
-% Parametrien vektorit
-x_G_plot_values = linspace(1.8, 3, 20);
-y_B_plot_values = linspace(1, 3, 20);
+%% ========== VAIHE 0: Lataa kaikki suunnittelumuuttujat ==========
+fprintf('\n[VAIHE 0] Ladataan suunnittelumuuttujat\n');
+fprintf('  📝 Lähde: design_variables_config.m\n');
+fprintf('  🎯 Kaikki parametrit YHDESSÄ PAIKASSA\n\n');
 
-% Alusta tulostaulukko (kaikki 6 M_x alkiota eri G ja B arvoilla)
-M_x_all = zeros(length(y_B_plot_values), length(x_G_plot_values), 6);
+% Lataa konfiguraatio (KAIKKI parametrit täällä!)
+config = design_variables_config();
 
-% Laskenta silmukassa
-for i = 1:length(x_G_plot_values)
-    for j = 1:length(y_B_plot_values)
-        G_val = x_G_plot_values(i);
-        B_val = y_B_plot_values(j);
+% Ekstraktoi eri muotoihin
+[all_params, varying_names, varying_ranges, varying_n_points, fixed_names] = ...
+    extract_design_variables(config);
 
-        % Lasketaan riippuvaiset vakiot
-        C_val = A - B_val;
-        E_val = G_val - H;
-        D_val = A - E_val;
+% Näytä konfiguraatio
+fprintf('%s\n', repmat('-', 1, 70));
+fprintf('📊 DYNAAMISET PARAMETRIT (optimization variables):\n');
+fprintf('%s\n', repmat('-', 1, 70));
 
-        M_A = [
-            0,    1,      -1,       1,          1,      1;
-            1,    -1,     1,        0,          0,      0;
-            0,    0,      0,        -1,         0,      1;
-            0,    0,      0,        0,          1,      -2;
-            0,    0,      E_val,    -(C_val-K), -C_val, -(C_val+K);
-            0,    H,      -G_val,   0,          0,      0;
-        ];
-
-        M_b = [
-            F_1 + Fg_2;
-            Fg_2;
-            0;
-            0;
-            -(A/2)*(F_1 + Fg_1);
-            -(G_val/2) * Fg_2
-        ];
-
-        M_x = M_A \ M_b;
-        M_x_all(j, i, :) = M_x;  % Tallennetaan kaikki 6 alkiota
-    end
+for i = 1:length(varying_names)
+    param_name = varying_names{i};
+    param_data = config.dynamics.(param_name);
+    fprintf('  ✓ %s: [%.2f, %.2f] (%d pistettä)\n', ...
+        param_name, ...
+        varying_ranges{i}(1), ...
+        varying_ranges{i}(2), ...
+        varying_n_points(i));
+    fprintf('    → %s (%s)\n', param_data.description, param_data.unit);
 end
 
-% ========== VISUALISOINTITAVAT ==========
-% Kommentoi pois / päälle tarpeen mukaan
+fprintf('\n%s\n', repmat('-', 1, 70));
+fprintf('🔒 STAATTISET PARAMETRIT (fixed values):\n');
+fprintf('%s\n', repmat('-', 1, 70));
 
-%plot_1_surf(x_G_plot_values, y_B_plot_values, M_x_all);
-%plot_2_contour(x_G_plot_values, y_B_plot_values, M_x_all);
-%plot_3_imagesc(x_G_plot_values, y_B_plot_values, M_x_all);
-plot_4_subplots(x_G_plot_values, y_B_plot_values, M_x_all);
-% plot_5_slices(x_G_plot_values, y_B_plot_values, M_x_all);
-% plot_6_bar3(x_G_plot_values, y_B_plot_values, M_x_all);
+for i = 1:length(fixed_names)
+    param_name = fixed_names{i};
+    desc_field = [param_name '_desc'];
+    
+    if isfield(config.static, desc_field)
+        description = config.static.(desc_field);
+    else
+        description = '(ei kuvausta)';
+    end
+    
+    fprintf('  ✓ %s = %.2f\n', param_name, config.static.(param_name));
+    fprintf('    → %s\n', description);
+end
+
+fprintf('\n');
+
+%% DEBUG: Tarkista ekstraktoidut muuttujat
+fprintf('%s\n', repmat('-', 1, 70));
+fprintf('DEBUG: Ekstraktoidut muuttujat\n');
+fprintf('%s\n', repmat('-', 1, 70));
+fprintf('  varying_names: '); disp(varying_names);
+fprintf('  varying_ranges: '); disp(varying_ranges);
+fprintf('  varying_n_points: '); disp(varying_n_points);
+fprintf('  fixed_names: '); disp(fixed_names);
+fprintf('  all_params (struct): '); disp(all_params);
+
+%% ========== VAIHE 1: Määritä suunnittelutila (Design Space) ==========
+fprintf('[VAIHE 1] Määritellään suunnittelutila\n\n');
+
+design_space = DesignSpace(varying_names, varying_ranges, varying_n_points, ...
+    fixed_names, all_params);
+design_space.display();
+
+%% ========== VAIHE 2: Määritä tavoitefunktiot ==========
+fprintf('[VAIHE 2] Määritellään tavoitefunktiot\n\n');
+
+objectives = ObjectiveFunctions();
+objectives.display();
+
+fprintf('  Painotukset TOPSIS-laskentaan: %s\n\n', mat2str(objectives.weights));
+
+%% ========== VAIHE 3: Evaluoi kaikki parametriyhdistelmät ==========
+fprintf('[VAIHE 3] Evaluoidaan kaikki parametriyhdistelmät\n');
+fprintf('  Tämä voi kestää hetken riippuen resoluutiosta...\n\n');
+
+engine = EvaluationEngine(design_space, objectives, true);
+engine = engine.evaluate_all();
+
+fprintf('\n  ✓ Evaluointi valmis\n');
+fprintf('    - Ratkaisut: %d kpl\n', size(engine.results.flattened_solutions, 1));
+fprintf('    - Tavoitteet: %d kpl\n', objectives.n_objectives);
+
+%% ========== VAIHE 4: MOO-analyysi ==========
+fprintf('\n[VAIHE 4] MOO-analyysi (TOPSIS + Pareto)\n');
+
+% 4a. Pareto-front tunnistaminen
+fprintf('  4a. Pareto-frontin tunnistaminen...\n');
+pareto_indices = MOOAnalyzer.find_pareto_front(...
+    engine.results.flattened_objectives, objectives.directions);
+
+n_pareto = sum(pareto_indices);
+fprintf('      ✓ Pareto-optimaaliset: %d / %d (%.1f%%)\n', ...
+    n_pareto, size(engine.results.flattened_objectives, 1), ...
+    100*n_pareto/size(engine.results.flattened_objectives, 1));
+
+% 4b. TOPSIS-menetelmä
+fprintf('  4b. TOPSIS-järjestys lasketaan...\n');
+[best_idx, ranking, topsis_scores] = MOOAnalyzer.topsis_analysis(...
+    engine.results.flattened_objectives, objectives.directions, objectives.weights);
+
+fprintf('      ✓ TOPSIS-paras ratkaisu: indeksi %d\n', best_idx);
+fprintf('      ✓ Top 5 TOPSIS-pisteet:\n');
+for i = 1:min(5, length(topsis_scores))
+    idx = ranking(i);
+    pareto_marker = '';
+    if pareto_indices(idx)
+        pareto_marker = ' [PARETO]';
+    end
+    fprintf('         %d. Score=%.4f%s\n', i, topsis_scores(idx), pareto_marker);
+end
+
+fprintf('      ✓ Rajoitteet määritelty\n');
+
+%% ========== VAIHE 5: Visualisaatio ==========
+fprintf('\n[VAIHE 5] Luodaan visualisaatiot...\n\n');
+
+moo_visualize(engine, objectives, topsis_scores, pareto_indices, 5);
+
+fprintf('      ✓ Kuvaajat luotu\n');
+
+%% ========== YHTEENVETO ==========
+fprintf('\n%s\n', repmat('=', 1, 70));
+fprintf('✓ ANALYYSI VALMIS\n');
+fprintf('%s\n\n', repmat('=', 1, 70));
+
+fprintf('📝 MUOKKAUSOHJEET:\n\n');
+fprintf('1️⃣  Muuta suunnittelumuuttujia:\n');
+fprintf('    → Avaa: design_variables_config.m\n');
+fprintf('    → Muuta: min, max, n_points\n');
+fprintf('    → Suorita: main\n\n');
+
+fprintf('2️⃣  Lisää uusia parametreja:\n');
+fprintf('    → design_variables_config.m (dynamics osio)\n');
+fprintf('    → config.dynamics.L = {...}\n\n');
+
+fprintf('3️⃣  Muuta tavoitefunktioita:\n');
+fprintf('    → ObjectiveFunctions.m\n\n');
 
 

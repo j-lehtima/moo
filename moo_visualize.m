@@ -129,8 +129,8 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n,
 
         for p_idx = 1:n_varying
             subplot(2, 2, p_idx);
-            
-            % Laskee parametrin arvot jokaiselle rankattavalle pisteelle.
+
+            % Calculate parameter values for each ranked point
             param_vals = zeros(n_show, 1);
             for r = 1:n_show
                 flat_idx = ranked_idx(r);
@@ -139,30 +139,42 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n,
                     varying_n_points, all_params);
                 param_vals(r) = params.(varying_names{p_idx});
             end
-            
+
+            % Fetch description from all_params
+            param_desc = all_params.dynamics.(varying_names{p_idx}).description;
+            param_unit = all_params.dynamics.(varying_names{p_idx}).unit;
+
             plot(ranks, param_vals, '-', ...
                 'Color', param_colors(p_idx, :), ...
                 'LineWidth', 0.6, ...
-                'DisplayName', varying_names{p_idx});
+                'DisplayName', sprintf('%s (%s)', param_desc, param_unit));
             grid on;
             xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
             ylabel('Arvo', 'FontSize', 10, 'FontWeight', 'bold');
-            title(sprintf('Parametri: %s', varying_names{p_idx}), ...
+            title(sprintf('Parametri: %s (%s)', varying_names{p_idx}, param_desc), ...
                 'FontSize', 11, 'FontWeight', 'bold');
             legend('Location', 'northeast', 'FontSize', 9, 'Box', 'on');
             set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
         end
-        
-        % Lisää tyhjä subplot jos parametreja on 3 (2x2 ruudukko).
-        if n_varying == 3
+
+        % Add a static parameter plot with ASCII text
+        % Define static_params from all_params.static
+        static_params = fieldnames(all_params.static);
+
+        if ~isempty(static_params)
             subplot(2, 2, 4);
             axis off;
-            text(0.5, 0.5, sprintf('Yhteensä %d ratkaisua\nRankattu TOPSIS:lla', n_show), ...
-                'FontSize', 12, 'FontWeight', 'bold');
+            static_text = "Staattiset parametrit:\n";
+            for s_idx = 1:length(static_params)
+                param_name = static_params{s_idx};
+                if endsWith(param_name, '_desc')
+                    continue;
+                end
+                param_desc = all_params.static.([param_name '_desc']);
+                param_value = all_params.static.(param_name);
+                static_text = sprintf('%s\n%s (%s): %.2f', static_text, param_name, param_desc, param_value);
+            end
+            text(0.1, 0.5, static_text, 'FontSize', 10, 'FontWeight', 'bold', 'VerticalAlignment', 'middle');
         end
-
-        % Figure 3 title can be viewed from window name
-        % Lisätään figure-titel käyttäen annotation (Octave-yhteensopiva)
-        drawnow;
     end
 end

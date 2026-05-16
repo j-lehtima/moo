@@ -8,8 +8,8 @@
 %
 % ASKEL 1: Avaa main.m ja suorita
 % ────────────────────────────────
-%   Komennolla: run main.m
-%   tai: F5
+%   Komennolla: octave --no-gui --eval "main"
+%   tai: F5 Octave GUI:ssa
 %
 % Mitä tapahtuu:
 %   1. Ladataan vakiot

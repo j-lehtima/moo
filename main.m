@@ -33,8 +33,10 @@ all_params.Fg_1 = config.static.Fg_1;
 all_params.Fg_2 = config.static.Fg_2;
 all_params.J = all_params.A + all_params.H;
 all_params.g = config.static.g;
+all_params.static = config.static;
 all_params.frame_mass_per_m = config.static.frame_mass_per_m;
 all_params.drawbar_mass_per_m = config.static.drawbar_mass_per_m;
+all_params.dynamics = config.dynamics;
 
 % Dynaamiset parametrit
 all_params.A = config.dynamics.A.min;
@@ -275,4 +277,7 @@ fprintf('    → ObjectiveFunctions.m\n\n');
 
 
 
-pause;  % Odottaa Enter-painallusta ennen sulkeutumista
+waitfor(gcf);  % Odottaa Enter-painallusta ennen sulkeutumista
+
+% Prevent Octave from closing figures immediately after execution
+pause;

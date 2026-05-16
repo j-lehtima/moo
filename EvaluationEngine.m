@@ -98,6 +98,15 @@ classdef EvaluationEngine
                 
                 % Hae kaikki parametrit (vaihtelevat + kiinteät)
                 params = obj.design_space.get_parameters(indices(1:n_params));
+
+                % Päivitä ratkaisukohtaiset omamassat voimina (Fg_1, Fg_2)
+                params = compute_dynamic_loads(params);
+
+                if obj.verbose && processed_count <= min(3, total_count)
+                    fprintf(['  DEBUG piste %d: A=%.3f m, G=%.3f m, J=%.3f m, ' ...
+                        'Fg_1=%.1f N, Fg_2=%.1f N\n'], ...
+                        processed_count, params.A, params.G, params.J, params.Fg_1, params.Fg_2);
+                end
                 
                 % Laske matriisi (M_x) tälle parametriyhdistelmälle
                 M_x = matrix_builder(params);
@@ -105,8 +114,8 @@ classdef EvaluationEngine
                 % Tallennetaan ratkaisu n-ulotteiseen arrayhin
                 solutions(indices_cell{:}, :) = M_x';
                 
-                % Laske tavoitefunktiot
-                obj_values = obj.objectives.evaluate_all(M_x);
+                % Laske tavoitefunktiot (M_x + nykyinen parametriyhdistelmä)
+                obj_values = obj.objectives.evaluate_all(M_x, params);
                 objectives(indices_cell{:}, :) = obj_values';
                 
                 % Debug-tulostus

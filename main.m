@@ -25,26 +25,31 @@ config = design_variables_config();
 
 % Ekstraktoi eri muotoihin - käytä purettuja arvoja
 all_params = struct();
-all_params.A = config.static.A;
+all_params.A = config.dynamics.A.min;
 all_params.H = config.static.H;
 all_params.K = config.static.K;
 all_params.F_1 = config.static.F_1;
 all_params.Fg_1 = config.static.Fg_1;
 all_params.Fg_2 = config.static.Fg_2;
-all_params.J = config.static.J;
+all_params.J = all_params.A + all_params.H;
+all_params.g = config.static.g;
+all_params.frame_mass_per_m = config.static.frame_mass_per_m;
+all_params.drawbar_mass_per_m = config.static.drawbar_mass_per_m;
 
 % Dynaamiset parametrit
+all_params.A = config.dynamics.A.min;
 all_params.B = config.dynamics.B.min;
 all_params.G = config.dynamics.G.min;
 
 % Määritä mitä vaihtelee
-varying_names = {'B', 'G'};
-varying_ranges = {[config.dynamics.B.min, config.dynamics.B.max], ...
+varying_names = {'A', 'B', 'G'};
+varying_ranges = {[config.dynamics.A.min, config.dynamics.A.max], ...
+                   [config.dynamics.B.min, config.dynamics.B.max], ...
                    [config.dynamics.G.min, config.dynamics.G.max]};
-varying_n_points = [config.dynamics.B.n_points, config.dynamics.G.n_points];
+varying_n_points = [config.dynamics.A.n_points, config.dynamics.B.n_points, config.dynamics.G.n_points];
 
 % Määritä mitä on kiinteitä
-fixed_names = {'A', 'H', 'K', 'F_1', 'Fg_1', 'Fg_2', 'J'};
+fixed_names = {'H', 'K', 'F_1', 'g', 'frame_mass_per_m', 'drawbar_mass_per_m', 'Fg_1', 'Fg_2', 'J'};
 
 % Näytä konfiguraatio
 fprintf('%s\n', repmat('-', 1, 70));

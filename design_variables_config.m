@@ -17,6 +17,13 @@ function config = design_variables_config()
     % Nämä vaihtelevat analyysissä: minusta maksiin, N pisteellä
     
     config.dynamics = struct();
+
+    % A: Kehikon pituus, mille rakennetaan kuorma [m]
+    config.dynamics.A.min = 7.0;
+    config.dynamics.A.max = 8.0;
+    config.dynamics.A.n_points = 10;
+    config.dynamics.A.description = 'Kehikon pituus, mille rakennetaan kuorma';
+    config.dynamics.A.unit = 'm';
     
     % B: Lehtijousen etäisyys kehikon edusta [m]
     config.dynamics.B.min = 1.0;
@@ -32,13 +39,6 @@ function config = design_variables_config()
     config.dynamics.G.description = 'Aisan pituus vetolaitteelle';
     config.dynamics.G.unit = 'm';
     
-    % K: Lehtijousen pituus [m]
-    % Huomio: Vaihda kommentiksi jos haluat pitää kiinteänä
-    % config.dynamics.K.min = 0.5;
-    % config.dynamics.K.max = 1.5;
-    % config.dynamics.K.n_points = 8;
-    % config.dynamics.K.description = 'Lehtijousen pituus';
-    % config.dynamics.K.unit = 'm';
     
     % ========================================================================
     % STAATTISET PARAMETRIT (Fixed values / Constant parameters)
@@ -48,9 +48,6 @@ function config = design_variables_config()
     config.static = struct();
     
     % === GEOMETRIA [m] ===
-    config.static.A = 7.0;       % Kehikon pituus, mille rakennetaan kuorma
-    config.static.A_desc = 'Kehikon pituus, mille rakennetaan kuorma';
-    
     config.static.H = 1.5;       % Aisan pituus trailerin etuseinästä vetolaitteelle
     config.static.H_desc = 'Aisan pituus vetolaitteelle';
     
@@ -60,15 +57,50 @@ function config = design_variables_config()
     % === KUORMITUS [N] ===
     config.static.F_1 = 80000;   % Lastin paino
     config.static.F_1_desc = 'Lastin paino';
+
+    % === OMAN MASSAN MALLI (ratkaisukohtainen) ===
+    % Fg lasketaan evaluoinnissa kaavalla:
+    %   Fg = pituus (m) * metripaino (kg/m) * g (m/s^2)
+    %
+    % Tässä mallissa:
+    %   Fg_1 = A * frame_mass_per_m * g
+    %   Fg_2 = G * drawbar_mass_per_m * g
+    config.static.g = 9.81;
+    config.static.g_desc = 'Gravitaatio';
+
+    config.static.frame_mass_per_m = 102;   % Rungon metripaino
+    config.static.frame_mass_per_m_desc = 'Rungon metripaino';
+
+    config.static.drawbar_mass_per_m = 51;  % Aisan metripaino
+    config.static.drawbar_mass_per_m_desc = 'Aisan metripaino';
     
-    config.static.Fg_1 = 7000;   % Rungon akseleiden päällä oleva omamassa
-    config.static.Fg_1_desc = 'Rungon akseleiden omamassa';
+    % Nämä arvot ovat lähtöarvoja/näkyvyyttä varten,
+    % mutta evaluoinnissa ne ylikirjoitetaan ratkaisukohtaisesti
+    % yllä olevan massamallin perusteella.
+    if isfield(config.dynamics, 'A')
+        a_length_default = config.dynamics.A.min;
+    elseif isfield(config.static, 'A')
+        a_length_default = config.static.A;
+    else
+        error('A-parametri puuttuu: maarita se joko config.dynamics.A tai config.static.A');
+    end
+
+    config.static.Fg_1 = a_length_default * config.static.frame_mass_per_m * config.static.g;
+    config.static.Fg_1_desc = 'Rungon omamassa (laskettu: A * frame_mass_per_m * g)';
     
-    config.static.Fg_2 = 1200;   % Aisan omamassa
-    config.static.Fg_2_desc = 'Aisan omamassa';
+    if isfield(config.dynamics, 'G')
+        g_length_default = config.dynamics.G.min;
+    elseif isfield(config.static, 'G')
+        g_length_default = config.static.G;
+    else
+        error('G-parametri puuttuu: maarita se joko config.dynamics.G tai config.static.G');
+    end
+
+    config.static.Fg_2 = g_length_default * config.static.drawbar_mass_per_m * config.static.g;
+    config.static.Fg_2_desc = 'Aisan omamassa (laskettu: G * drawbar_mass_per_m * g)';
     
     % === KOKONAISPARAMETRIT (lasketaan) ===
-    config.static.J = config.static.A + config.static.H;  % Kokonaispituus
+    config.static.J = a_length_default + config.static.H;  % Kokonaispituus
     config.static.J_desc = 'Kokonaispituus (A + H)';
     
     % ========================================================================

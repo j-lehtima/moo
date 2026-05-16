@@ -1,0 +1,4 @@
+status=ok
+n_solutions=100
+n_objectives=4
+n_pareto=65

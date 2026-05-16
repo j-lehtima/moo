@@ -89,42 +89,43 @@ classdef MOOAnalyzer
             % - A on parempi ainakin yhdessä tavoitteessa
             
             n_solutions = size(obj_values, 1);
-            n_objectives = size(obj_values, 2);
             pareto_indices = true(n_solutions, 1);
-            
+
+            % Muunna kaikki tavoitteet minimointimuotoon:
+            % maksimointitavoitteet kerrotaan -1:llä.
+            comparable_values = obj_values;
+            maximize_mask = directions > 0;
+            comparable_values(:, maximize_mask) = -comparable_values(:, maximize_mask);
+
             for i = 1:n_solutions
-                for j = 1:n_solutions
-                    if i == j
-                        continue;
-                    end
-                    
-                    % Tarkista dominaatio: onko j parempi kuin i?
-                    better_count = 0;  % kuinka monissa tavoitteissa j on parempi
-                    equal_or_better = true;  % onko j yhtä hyvä tai parempi kaikissa
-                    
-                    for k = 1:n_objectives
-                        if directions(k) > 0  % maksimointi
-                            is_better = obj_values(j, k) > obj_values(i, k);
-                            is_equal_better = obj_values(j, k) >= obj_values(i, k);
-                        else  % minimointi
-                            is_better = obj_values(j, k) < obj_values(i, k);
-                            is_equal_better = obj_values(j, k) <= obj_values(i, k);
-                        end
-                        
-                        if is_better
-                            better_count = better_count + 1;
-                        end
-                        if ~is_equal_better
-                            equal_or_better = false;
-                        end
-                    end
-                    
-                    % j dominoi i:ä jos j on parempi ainakin yhdessä ja yhtä hyvä kaikissa
-                    if equal_or_better && better_count > 0
-                        pareto_indices(i) = false;
-                        break;  % i on dominoitu, ei tarvitse tarkistaa muita
-                    end
+                if ~pareto_indices(i)
+                    continue;
                 end
+
+                active_indices = find(pareto_indices);
+                active_values = comparable_values(active_indices, :);
+                current_value = comparable_values(i, :);
+
+                % Onko jokin aktiivinen ratkaisu vähintään yhtä hyvä kaikissa
+                % tavoitteissa ja parempi ainakin yhdessä?
+                dominates_current = all(bsxfun(@le, active_values, ...
+                    current_value + MOOAnalyzer.EPSILON), 2) & ...
+                    any(bsxfun(@lt, active_values, ...
+                    current_value - MOOAnalyzer.EPSILON), 2);
+
+                if any(dominates_current)
+                    pareto_indices(i) = false;
+                    continue;
+                end
+
+                % Karsi pois ratkaisut, jotka nykyinen ratkaisu dominoi.
+                dominated_by_current = all(bsxfun(@ge, active_values, ...
+                    current_value - MOOAnalyzer.EPSILON), 2) & ...
+                    any(bsxfun(@gt, active_values, ...
+                    current_value + MOOAnalyzer.EPSILON), 2);
+
+                pareto_indices(active_indices(dominated_by_current)) = false;
+                pareto_indices(i) = true;
             end
         end
         

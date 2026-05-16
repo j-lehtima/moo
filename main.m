@@ -152,6 +152,98 @@ moo_visualize(engine, objectives, topsis_scores, pareto_indices, 5);
 
 fprintf('      ✓ Kuvaajat luotu\n');
 
+%% ========== VAIHE 6: Exportaa tulokset CSV:ksi ==========
+fprintf('\n[VAIHE 6] Viedään tulokset CSV-tiedostoon\n');
+fprintf('  Järjestys: Ranking → Tavoitteet → Dynaamiset → Staattiset\n\n');
+
+% Järjestä TOPSIS scoresit parhailta huonoimmille
+[~, ranked_indices] = sort(topsis_scores, 'descend');
+
+n_results = length(ranked_indices);
+n_objectives = size(engine.results.flattened_objectives, 2);
+
+% Luo CSV-sarakkeiden otsikot
+csv_headers = {'Ranking', 'TOPSIS_Score'};
+
+% Tavoitefunktioiden nimet
+for i = 1:n_objectives
+    csv_headers{end+1} = objectives.names{i};
+end
+
+% Dynaamiset parametrit
+for i = 1:length(varying_names)
+    csv_headers{end+1} = varying_names{i};
+end
+
+% Staattiset parametrit
+for i = 1:length(fixed_names)
+    csv_headers{end+1} = fixed_names{i};
+end
+
+% Kerää kaikki tulokset taulukkoon
+data_table = [];
+
+for rank = 1:n_results
+    flat_idx = ranked_indices(rank);
+    
+    % Aloita ranking-numerolla ja TOPSIS-pisteen
+    row = [rank, topsis_scores(flat_idx)];
+    
+    % Lisää tavoitefunktioiden arvot
+    row = [row, engine.results.flattened_objectives(flat_idx, :)];
+    
+    % Muunna flat-indeksi multi-indeksiksi (parametriyhdistelmä)
+    multi_idx = ind2sub_custom(varying_n_points, flat_idx);
+    
+    % Hae kyseisen kombinaation parametrit
+    params = get_params_from_index(multi_idx, varying_names, varying_ranges, ...
+        varying_n_points, all_params);
+    
+    % Lisää dynaamiset parametrit
+    for i = 1:length(varying_names)
+        row = [row, params.(varying_names{i})];
+    end
+    
+    % Lisää staattiset parametrit
+    for i = 1:length(fixed_names)
+        row = [row, params.(fixed_names{i})];
+    end
+    
+    data_table = [data_table; row];
+end
+
+% Kirjoita CSV-tiedosto
+csv_filename = 'moo_results_ranked.csv';
+fid = fopen(csv_filename, 'w');
+
+% Kirjoita otsikkorivi
+for i = 1:length(csv_headers)
+    if i < length(csv_headers)
+        fprintf(fid, '%s,', csv_headers{i});
+    else
+        fprintf(fid, '%s\n', csv_headers{i});
+    end
+end
+
+% Kirjoita datarivi
+for i = 1:size(data_table, 1)
+    for j = 1:size(data_table, 2)
+        if j < size(data_table, 2)
+            fprintf(fid, '%.8f,', data_table(i, j));
+        else
+            fprintf(fid, '%.8f\n', data_table(i, j));
+        end
+    end
+end
+
+fclose(fid);
+
+fprintf('      ✓ CSV exportattu: %s\n', csv_filename);
+fprintf('      ✓ Rivejä: %d (ranking 1 = paras)\n', size(data_table, 1));
+fprintf('      ✓ Sarakkeita: %d\n', size(data_table, 2));
+fprintf('        - Ranking, TOPSIS_Score, Tavoitteet (%d), Dynaamiset (%d), Staattiset (%d)\n\n', ...
+    n_objectives, length(varying_names), length(fixed_names));
+
 %% ========== YHTEENVETO ==========
 fprintf('\n%s\n', repmat('=', 1, 70));
 fprintf('✓ ANALYYSI VALMIS\n');
@@ -169,5 +261,6 @@ fprintf('    → config.dynamics.L = {...}\n\n');
 
 fprintf('3️⃣  Muuta tavoitefunktioita:\n');
 fprintf('    → ObjectiveFunctions.m\n\n');
+
 
 

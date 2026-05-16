@@ -167,20 +167,38 @@ fprintf('      ✓ Kuvaajat luotu\n');
 
 %% ========== VAIHE 6: Exportaa tulokset CSV:ksi ==========
 fprintf('\n[VAIHE 6] Viedään tulokset CSV-tiedostoon\n');
-fprintf('  Järjestys: Ranking → Tavoitteet → Dynaamiset → Staattiset\n\n');
+fprintf('  Järjestys: Ranking/Analyysi → Tavoitteet → M_x → Dynaamiset → Johdetut → Staattiset\n\n');
 
 % Järjestä TOPSIS scoresit parhailta huonoimmille
 [~, ranked_indices] = sort(topsis_scores, 'descend');
 
 n_results = length(ranked_indices);
 n_objectives = size(engine.results.flattened_objectives, 2);
+n_solution_components = size(engine.results.flattened_solutions, 2);
+plot_labels = get_plot_labels();
 
 % Luo CSV-sarakkeiden otsikot
-csv_headers = {'Ranking', 'TOPSIS_Score'};
+csv_headers = {'Ranking', 'Flat_Index', 'Is_Pareto', 'TOPSIS_Score'};
 
 % Tavoitefunktioiden nimet
 for i = 1:n_objectives
-    csv_headers{end+1} = objectives.names{i};
+    % Normalisoi nimi CSV-turvalliseksi (ei pilkkuja erotinmerkkeina)
+    objective_name = objectives.names{i};
+    objective_name = regexprep(objective_name, '\s+', '_');
+    objective_name = regexprep(objective_name, '[^A-Za-z0-9_]', '_');
+    objective_name = regexprep(objective_name, '_+', '_');
+    objective_name = regexprep(objective_name, '^_|_$', '');
+    csv_headers{end+1} = sprintf('objective_%d_%s', i, objective_name);
+end
+
+for i = 1:n_solution_components
+    % Hae voimanimi keskitetysta konfiguraatiosta (get_plot_labels)
+    if isfield(plot_labels, 'force_names') && i <= length(plot_labels.force_names)
+        force_name = regexprep(plot_labels.force_names{i}, '[^A-Za-z0-9_]', '_');
+        csv_headers{end+1} = sprintf('M_x_%d_%s', i, force_name);
+    else
+        csv_headers{end+1} = sprintf('M_x_%d', i);
+    end
 end
 
 % Dynaamiset parametrit
@@ -188,9 +206,15 @@ for i = 1:length(varying_names)
     csv_headers{end+1} = varying_names{i};
 end
 
+% Johdetut kuormat (kenttanimet konfiguraatiosta)
+dynamic_load_fields = {'Fg_1', 'Fg_2'};
+for i = 1:length(dynamic_load_fields)
+    csv_headers{end+1} = ['dynamic_' dynamic_load_fields{i}];
+end
+
 % Staattiset parametrit
 for i = 1:length(fixed_names)
-    csv_headers{end+1} = fixed_names{i};
+    csv_headers{end+1} = ['static_' fixed_names{i}];
 end
 
 % Kerää kaikki tulokset taulukkoon
@@ -199,11 +223,14 @@ data_table = [];
 for rank = 1:n_results
     flat_idx = ranked_indices(rank);
     
-    % Aloita ranking-numerolla ja TOPSIS-pisteen
-    row = [rank, topsis_scores(flat_idx)];
+    % Aloita ranking-metadatalla
+    row = [rank, flat_idx, double(pareto_indices(flat_idx)), topsis_scores(flat_idx)];
     
     % Lisää tavoitefunktioiden arvot
     row = [row, engine.results.flattened_objectives(flat_idx, :)];
+
+    % Lisää ratkaisun M_x-komponentit
+    row = [row, engine.results.flattened_solutions(flat_idx, :)];
     
     % Muunna flat-indeksi multi-indeksiksi (parametriyhdistelmä)
     multi_idx = ind2sub_custom(varying_n_points, flat_idx);
@@ -215,6 +242,12 @@ for rank = 1:n_results
     % Lisää dynaamiset parametrit
     for i = 1:length(varying_names)
         row = [row, params.(varying_names{i})];
+    end
+
+    % Päivitä johdetut kuormat keskitetyn laskentafunktion avulla
+    params = compute_dynamic_loads(params);
+    for i = 1:length(dynamic_load_fields)
+        row = [row, params.(dynamic_load_fields{i})];
     end
     
     % Lisää staattiset parametrit
@@ -254,8 +287,9 @@ fclose(fid);
 fprintf('      ✓ CSV exportattu: %s\n', csv_filename);
 fprintf('      ✓ Rivejä: %d (ranking 1 = paras)\n', size(data_table, 1));
 fprintf('      ✓ Sarakkeita: %d\n', size(data_table, 2));
-fprintf('        - Ranking, TOPSIS_Score, Tavoitteet (%d), Dynaamiset (%d), Staattiset (%d)\n\n', ...
-    n_objectives, length(varying_names), length(fixed_names));
+fprintf(['        - Ranking/Analyysi (4), Tavoitteet (%d), M_x (%d), ' ...
+    'Dynaamiset (%d), Johdetut (2), Staattiset (%d)\n\n'], ...
+    n_objectives, n_solution_components, length(varying_names), length(fixed_names));
 
 %% ========== YHTEENVETO ==========
 fprintf('\n%s\n', repmat('=', 1, 70));

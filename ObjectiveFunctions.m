@@ -28,25 +28,29 @@ classdef ObjectiveFunctions
             % 4. Voimien tasaisuus (varianssin minimointi)
             
             % Tavoitefunktiot lambda-funktioina
-            obj.objectives{1} = @(M_x) max(abs(M_x));           % Maksimi |voima|
-            obj.objectives{2} = @(M_x) sum(abs(M_x));           % Kokonaisvoiman summa
-            obj.objectives{3} = @(M_x) min(abs(M_x(M_x>0)));   % Minimaalinen positiivinen voima
-            obj.objectives{4} = @(M_x) var(M_x);               % Voimien varianssi
-            
+            obj.objectives{1} = @(M_x) M_x(1);           % Aisa, F_a (N)
+            obj.objectives{2} = @(M_x) M_x(2);           %  , F_b (N)
+            obj.objectives{3} = @(M_x) M_x(3);           %  , F_c (N)
+            obj.objectives{4} = @(M_x) M_x(4);           %  , F_d (N)
+            obj.objectives{5} = @(M_x) M_x(5);           %  , F_e (N)
+            obj.objectives{6} = @(M_x) M_x(6);           %  , F_f (N)
+
             % Tavoitteiden nimet (käytetään visualisaatioissa)
             obj.names = {
-                'Max. voima (N)'
-                'Kokonaisvoima (N)'
-                'Min. voima (N)'
-                'Varianssi'
+                'Aisa, F_a (N)'
+                'Ilmajousi, F_b (N)'
+                'Aisan rungon niveltappi, F_c (N)'
+                'Lehtijousi etunivel, F_d (N)',
+                'Lehtijousi keskinivel, F_e (N)',
+                'Lehtijousi takanivel, F_f (N)'
             };
             
             % Optimointisuunta: -1 = minimointi, +1 = maksimointi
-            obj.directions = [-1, -1, 1, -1];
+            obj.directions = [-1, -1, -1, -1, -1, -1];
             
             % Painotukset TOPSIS-algoritmille (summa=1.0)
             % Muokkaa näitä painoarvoja kun haluat korostaa joitain tavoitteita
-            obj.weights = [0.3, 0.2, 0.3, 0.2];
+            obj.weights = [0.15, 0.15, 0.15, 0.05, 0.25, 0.25];
             
             % Validaatio
             if abs(sum(obj.weights) - 1.0) > 1e-6

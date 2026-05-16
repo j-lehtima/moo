@@ -122,13 +122,13 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n,
     if ~isempty(varying_names) && ~isempty(varying_ranges) && ~isempty(varying_n_points)
         fig3 = figure(3); clf;
         set(fig3, 'Name', 'Suunnitteluparametrit rankin mukaan', 'NumberTitle', 'off', ...
-            'Color', [1 1 1], 'Position', [120 120 1400 850]);
+            'Color', [1 1 1], 'Position', [120 80 1400 950]);
 
         n_varying = length(varying_names);
         param_colors = lines(n_varying);
 
         for p_idx = 1:n_varying
-            subplot(2, 2, p_idx);
+            subplot(3, 2, p_idx);
 
             % Calculate parameter values for each ranked point
             param_vals = zeros(n_show, 1);
@@ -157,24 +157,72 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n,
             set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
         end
 
-        % Add a static parameter plot with ASCII text
-        % Define static_params from all_params.static
-        static_params = fieldnames(all_params.static);
+        % Fg_1 ja Fg_2 ovat ratkaisukohtaisesti muuttuvia -> piirretään ne käyrinä.
+        subplot(3, 2, 4);
+        fg1_vals = zeros(n_show, 1);
+        fg2_vals = zeros(n_show, 1);
 
-        if ~isempty(static_params)
-            subplot(2, 2, 4);
-            axis off;
-            static_text = "Staattiset parametrit:\n";
-            for s_idx = 1:length(static_params)
-                param_name = static_params{s_idx};
-                if endsWith(param_name, '_desc')
+        for r = 1:n_show
+            flat_idx = ranked_idx(r);
+            multi_idx = ind2sub_custom(varying_n_points, flat_idx);
+            params = get_params_from_index(multi_idx, varying_names, varying_ranges, ...
+                varying_n_points, all_params);
+
+            fg1_vals(r) = params.A * all_params.frame_mass_per_m * all_params.g;
+            fg2_vals(r) = params.G * all_params.drawbar_mass_per_m * all_params.g;
+        end
+
+        plot(ranks, fg1_vals, '-', 'LineWidth', 0.6, 'Color', [0.85 0.33 0.10], ...
+            'DisplayName', 'Fg_1 = A * frame_mass_per_m * g');
+        hold on;
+        plot(ranks, fg2_vals, '-', 'LineWidth', 0.6, 'Color', [0.00 0.45 0.74], ...
+            'DisplayName', 'Fg_2 = G * drawbar_mass_per_m * g');
+        hold off;
+        grid on;
+        xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
+        ylabel('Voima [N]', 'FontSize', 10, 'FontWeight', 'bold');
+        title('Muuttuvat omamassat: Fg_1 ja Fg_2', 'FontSize', 11, 'FontWeight', 'bold');
+        legend('Location', 'northeast', 'FontSize', 9, 'Box', 'on');
+        set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
+
+        % Staattisille parametreille oma paneeli (ei overlayta kuvaajien paalle).
+        subplot(3, 2, [5 6]);
+        axis off;
+        if isfield(all_params, 'static')
+            static_names = fieldnames(all_params.static);
+            static_lines = {'Staattiset parametrit:'};
+
+            for s_idx = 1:length(static_names)
+                s_name = static_names{s_idx};
+
+                if endsWith(s_name, '_desc')
                     continue;
                 end
-                param_desc = all_params.static.([param_name '_desc']);
-                param_value = all_params.static.(param_name);
-                static_text = sprintf('%s\n%s (%s): %.2f', static_text, param_name, param_desc, param_value);
+                if strcmp(s_name, 'Fg_1') || strcmp(s_name, 'Fg_2')
+                    continue;
+                end
+
+                s_value = all_params.static.(s_name);
+                desc_name = [s_name '_desc'];
+                if isfield(all_params.static, desc_name)
+                    s_desc = all_params.static.(desc_name);
+                    static_lines{end + 1} = sprintf('%s = %.3g (%s)', s_name, s_value, s_desc);
+                else
+                    static_lines{end + 1} = sprintf('%s = %.3g', s_name, s_value);
+                end
             end
-            text(0.1, 0.5, static_text, 'FontSize', 10, 'FontWeight', 'bold', 'VerticalAlignment', 'middle');
+
+            static_lines{end + 1} = 'Fg_1/Fg_2: katso kuvaaja ylaoikealla';
+            text(0.01, 0.98, strjoin(static_lines, '\n'), ...
+                'Units', 'normalized', ...
+                'VerticalAlignment', 'top', ...
+                'Interpreter', 'none', ...
+                'FontSize', 10);
         end
+
+        % Varmista, että viimeinen ikkuna renderoituu ilman konsolin klikkausta.
+        drawnow;
+        pause(0.01);
+        drawnow;
     end
 end

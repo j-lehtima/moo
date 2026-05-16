@@ -1,4 +1,4 @@
-function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
+function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n, varying_names, varying_ranges, varying_n_points, all_params)
     % moo_visualize - Visualisoi MOO-tulosten
     %
     % Input:
@@ -6,10 +6,20 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     %   objectives - ObjectiveFunctions objekti
     %   topsis_scores - TOPSIS-pisteen vektori
     %   pareto_indices - looginen vektori (Pareto-optimaaliset)
-    %   top_n - montako TOP-ratkaisua näytetään (default 5)
+    %   top_n - montako TOP-ratkaisua näytetään (default kaikki)
+    %   varying_names - cell array: dynaamisten parametrien nimet (opt)
+    %   varying_ranges - cell array: dynaamisten välit (opt)
+    %   varying_n_points - vektori: dynaamisten resoluutiot (opt)
+    %   all_params - struct: kaikki parametrit (opt)
     
     if nargin < 5
         top_n = [];
+    end
+    if nargin < 6
+        varying_names = {};
+        varying_ranges = {};
+        varying_n_points = [];
+        all_params = struct();
     end
     n_objectives = objectives.n_objectives;
     n_solutions = size(engine.results.flattened_objectives, 1);
@@ -38,7 +48,7 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     % Subplot 1: TOPSIS-score rankin mukaan
     subplot(n_objectives + 1, 1, 1);
     plot(ranks, topsis_scores(ranked_idx), '-', 'Color', [0.15 0.15 0.15], ...
-        'LineWidth', 1.8, 'DisplayName', 'TOPSIS score');
+        'LineWidth', 0.6, 'DisplayName', 'TOPSIS score');
     hold on;
     pareto_ranks = ranks(ranked_pareto);
     if ~isempty(pareto_ranks)
@@ -51,7 +61,7 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
     ylabel('TOPSIS', 'FontSize', 10, 'FontWeight', 'bold');
     title(sprintf('TOPSIS-järjestys (n = %d)', n_show), 'FontSize', 11, 'FontWeight', 'bold');
-    legend('Location', 'best', 'FontSize', 9, 'Box', 'on');
+    legend('Location', 'northeast', 'FontSize', 9, 'Box', 'on');
     set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
 
     % Subplot 2..N: jokaiselle tavoitteelle oma y-akseli / oma paneeli
@@ -59,19 +69,20 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
         subplot(n_objectives + 1, 1, obj_idx + 1);
         plot(ranks, ranked_objectives(:, obj_idx), '-', ...
             'Color', colors_map(obj_idx, :), ...
-            'LineWidth', 1.8, ...
+            'LineWidth', 0.6, ...
             'DisplayName', objectives.names{obj_idx});
         grid on;
         xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
         ylabel('Arvo', 'FontSize', 10, 'FontWeight', 'bold');
         title(sprintf('Tavoite %d: %s', obj_idx, objectives.names{obj_idx}), ...
             'FontSize', 11, 'FontWeight', 'bold');
-        legend('Location', 'best', 'FontSize', 9, 'Box', 'on');
+        legend('Location', 'northeast', 'FontSize', 9, 'Box', 'on');
         set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
     end
 
-    sgtitle(sprintf('TOPSIS-rankattu tavoitenakyma, kaikki ratkaisut (n = %d)', n_show), ...
-        'FontSize', 14, 'FontWeight', 'bold');
+    % Figure 1 title can be viewed from window name
+    % Lisätään figure-titel käyttäen annotation (Octave-yhteensopiva)
+    drawnow;
 
     % ===== IKKUNA 2: M_x-KOMPONENTIT RANKIN MUKAAN =====
     fig2 = figure(2); clf;
@@ -89,9 +100,9 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
 
     for k = 1:6
         subplot(2, 3, k);
-        plot(ranks, ranked_solutions(:, k), 'o-', ...
-            'LineWidth', 2.0, ...
-            'MarkerSize', 6, ...
+        plot(ranks, ranked_solutions(:, k), '-', ...
+            'LineWidth', 0.6, ...
+            'MarkerSize', 2, ...
             'Color', [0.1 0.35 0.75], ...
             'DisplayName', component_labels{k});
         grid on;
@@ -99,10 +110,59 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
         ylabel('Arvo', 'FontSize', 10, 'FontWeight', 'bold');
         title(sprintf('%s rankin mukaan', component_labels{k}), ...
             'FontSize', 11, 'FontWeight', 'bold');
-        legend('Location', 'best', 'FontSize', 9, 'Box', 'on');
+        legend('Location', 'northeast', 'FontSize', 9, 'Box', 'on');
         set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
     end
 
-    sgtitle(sprintf('M_x-elementtien rankattu jakauma (n = %d)', n_show), ...
-        'FontSize', 14, 'FontWeight', 'bold');
+    % Figure 2 title can be viewed from window name
+    % Lisätään figure-titel käyttäen annotation (Octave-yhteensopiva)
+    drawnow;
+
+    % ===== IKKUNA 3: DESIGN PARAMETRIT RANKIN MUKAAN =====
+    if ~isempty(varying_names) && ~isempty(varying_ranges) && ~isempty(varying_n_points)
+        fig3 = figure(3); clf;
+        set(fig3, 'Name', 'Suunnitteluparametrit rankin mukaan', 'NumberTitle', 'off', ...
+            'Color', [1 1 1], 'Position', [120 120 1400 850]);
+
+        n_varying = length(varying_names);
+        param_colors = lines(n_varying);
+
+        for p_idx = 1:n_varying
+            subplot(2, 2, p_idx);
+            
+            % Laskee parametrin arvot jokaiselle rankattavalle pisteelle.
+            param_vals = zeros(n_show, 1);
+            for r = 1:n_show
+                flat_idx = ranked_idx(r);
+                multi_idx = ind2sub_custom(varying_n_points, flat_idx);
+                params = get_params_from_index(multi_idx, varying_names, varying_ranges, ...
+                    varying_n_points, all_params);
+                param_vals(r) = params.(varying_names{p_idx});
+            end
+            
+            plot(ranks, param_vals, '-', ...
+                'Color', param_colors(p_idx, :), ...
+                'LineWidth', 0.6, ...
+                'DisplayName', varying_names{p_idx});
+            grid on;
+            xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
+            ylabel('Arvo', 'FontSize', 10, 'FontWeight', 'bold');
+            title(sprintf('Parametri: %s', varying_names{p_idx}), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            legend('Location', 'northeast', 'FontSize', 9, 'Box', 'on');
+            set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
+        end
+        
+        % Lisää tyhjä subplot jos parametreja on 3 (2x2 ruudukko).
+        if n_varying == 3
+            subplot(2, 2, 4);
+            axis off;
+            text(0.5, 0.5, sprintf('Yhteensä %d ratkaisua\nRankattu TOPSIS:lla', n_show), ...
+                'FontSize', 12, 'FontWeight', 'bold');
+        end
+
+        % Figure 3 title can be viewed from window name
+        % Lisätään figure-titel käyttäen annotation (Octave-yhteensopiva)
+        drawnow;
+    end
 end

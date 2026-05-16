@@ -157,7 +157,9 @@ fprintf('      ✓ Rajoitteet määritelty\n');
 %% ========== VAIHE 5: Visualisaatio ==========
 fprintf('\n[VAIHE 5] Luodaan visualisaatiot...\n\n');
 
-moo_visualize(engine, objectives, topsis_scores, pareto_indices, size(engine.results.flattened_objectives, 1));
+moo_visualize(engine, objectives, topsis_scores, pareto_indices, ...
+    size(engine.results.flattened_objectives, 1), ...
+    varying_names, varying_ranges, varying_n_points, all_params);
 
 fprintf('      ✓ Kuvaajat luotu\n');
 

@@ -9,152 +9,100 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     %   top_n - montako TOP-ratkaisua näytetään (default 5)
     
     if nargin < 5
-        top_n = 5;
+        top_n = [];
     end
-    
     n_objectives = objectives.n_objectives;
     n_solutions = size(engine.results.flattened_objectives, 1);
-    
-    % ===== KUVA 1: TOPSIS-pisteet vs ratkaisut =====
-    fig1 = figure('Name', '🎯 MOO ANALYSIS - TOPSIS RANKING & PARETO', 'NumberTitle', 'off');
-    set(fig1, 'Color', [0.98 0.98 0.98]);  % Kevyt harmaa tausta
-    
-    % --- Subkuva 1: TOPSIS-ranking ---
-    subplot(2, 2, 1);
-    x_vals = 1:min(top_n, n_solutions);
-    y_vals = topsis_scores(x_vals);
-    
-    % Väritä bars: punainen = Pareto, sininen = muu
-    colors_idx = ~pareto_indices(x_vals);
-    plot(x_vals(colors_idx), y_vals(colors_idx), 'bs', 'LineWidth', 2.5, 'MarkerSize', 12, ...
-        'DisplayName', '● Muu ratkaisu');
-    hold on;
-    plot(x_vals(~colors_idx), y_vals(~colors_idx), 'r^', 'LineWidth', 2.5, 'MarkerSize', 14, ...
-        'DisplayName', '★ Pareto-optimaalinen');
-    
-    xlabel('Ranking (1=paras)', 'FontSize', 11, 'FontWeight', 'bold');
-    ylabel('TOPSIS-paremmuusindeksi [0...1]', 'FontSize', 11, 'FontWeight', 'bold');
-    title(sprintf('📊 TOP %d RATKAISUT - TOPSIS-JÄRJESTYS', top_n), 'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
-    legend('Location', 'best', 'FontSize', 10, 'Box', 'on', 'EdgeColor', 'k');
-    grid on;
-    set(gca, 'GridColor', [0.8 0.8 0.8], 'GridAlpha', 0.3);
-    ylim([min(y_vals)-0.02, max(y_vals)+0.02]);
-    set(gca, 'FontSize', 10, 'FontName', 'monospace');
-    hold off;
-    
-    % --- Subkuva 2: Tavoite-pareittain scatter ---
-    subplot(2, 2, 2);
-    if n_objectives >= 2
-        non_pareto_idx = find(~pareto_indices);
-        pareto_idx = find(pareto_indices);
-        
-        plot(engine.results.flattened_objectives(non_pareto_idx, 1), ...
-             engine.results.flattened_objectives(non_pareto_idx, 2), ...
-             'o', 'Color', [0.3 0.3 0.8], 'MarkerSize', 6, 'DisplayName', '● Muut ratkaisut');
-        hold on;
-        if length(pareto_idx) > 0
-            plot(engine.results.flattened_objectives(pareto_idx, 1), ...
-                 engine.results.flattened_objectives(pareto_idx, 2), ...
-                 '*', 'Color', [0.8 0.1 0.1], 'MarkerSize', 18, 'LineWidth', 2, 'DisplayName', '★ Pareto-front');
-        end
-        
-        obj1_name = objectives.names{1};
-        obj2_name = objectives.names{2};
-        
-        xlabel(sprintf('%s', obj1_name), 'FontSize', 11, 'FontWeight', 'bold');
-        ylabel(sprintf('%s', obj2_name), 'FontSize', 11, 'FontWeight', 'bold');
-        title(sprintf('🎯 TAVOITTEIDEN SCATTER: %s vs %s', obj1_name, obj2_name), ...
-              'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
-        legend('Location', 'best', 'FontSize', 10, 'Box', 'on', 'EdgeColor', 'k');
-        grid on;
-        set(gca, 'GridColor', [0.8 0.8 0.8], 'GridAlpha', 0.3, 'FontSize', 10, 'FontName', 'monospace');
+
+    [~, ranking] = sort(topsis_scores, 'descend');
+
+    % Käytä oletuksena kaikkia ratkaisuja.
+    n_show = n_solutions;
+    if ~isempty(top_n)
+        n_show = min(top_n, n_solutions);
     end
-    
-    % --- Subkuva 3: Tavoite-arvojen vertailu TOP-ratkaisuille ---
-    subplot(2, 2, 3);
-    top_solutions_indices = 1:min(top_n, n_solutions);
-    obj_vals_top = engine.results.flattened_objectives(top_solutions_indices, :);
-    
-    % Normalisoidaan näyttöä varten
-    obj_vals_norm = obj_vals_top ./ (max(abs(obj_vals_top), [], 1) + 1e-10);
-    
-    % Piirrä kuvaajia Octave-yhteensopiavasti
-    hold off;
-    x_positions = 1:size(obj_vals_norm, 1);
-    
-    % Generoi värit dynaamisesti tavoitteiden lukumäärän perusteella
+    ranked_idx = ranking(1:n_show);
+
+    ranked_objectives = engine.results.flattened_objectives(ranked_idx, :);
+    ranked_solutions = engine.results.flattened_solutions(ranked_idx, :);
+    ranked_pareto = pareto_indices(ranked_idx);
+    ranks = (1:n_show)';
+
+    % ===== IKKUNA 1: TOPSIS-RANK VS TAVOITTEET =====
+    fig1 = figure(1); clf;
+    set(fig1, 'Name', 'TOPSIS-Rankattu Tavoitevertailu', 'NumberTitle', 'off', ...
+        'Color', [1 1 1], 'Position', [80 40 1350 900]);
+
     colors_map = lines(n_objectives);
-    
-    for obj_idx = 1:n_objectives
-        color = colors_map(obj_idx, :);
-        plot(x_positions, obj_vals_norm(:, obj_idx), 'o-', 'Color', color, ...
-            'LineWidth', 2.5, 'MarkerSize', 9, 'DisplayName', objectives.names{obj_idx});
-        hold on;
+
+    % Subplot 1: TOPSIS-score rankin mukaan
+    subplot(n_objectives + 1, 1, 1);
+    plot(ranks, topsis_scores(ranked_idx), '-', 'Color', [0.15 0.15 0.15], ...
+        'LineWidth', 1.8, 'DisplayName', 'TOPSIS score');
+    hold on;
+    pareto_ranks = ranks(ranked_pareto);
+    if ~isempty(pareto_ranks)
+        plot(pareto_ranks, topsis_scores(ranked_idx(ranked_pareto)), 'o', ...
+            'MarkerSize', 5, 'Color', [0.85 0.2 0.2], ...
+            'DisplayName', 'Pareto-ratkaisu');
     end
-    
-    xlabel('TOP-Ranking (1 = paras)', 'FontSize', 11, 'FontWeight', 'bold');
-    ylabel('Normalisoidut arvot [0...1]', 'FontSize', 11, 'FontWeight', 'bold');
-    title(sprintf('📈 TAVOITTEIDEN VERTAILU - TOP %d RATKAISUA', top_n), ...
-          'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
-    legend('Location', 'best', 'FontSize', 10, 'Box', 'on', 'EdgeColor', 'k');
-    grid on;
-    set(gca, 'GridColor', [0.8 0.8 0.8], 'GridAlpha', 0.3, 'FontSize', 10, 'FontName', 'monospace');
-    set(gca, 'YTick', [0 0.2 0.4 0.6 0.8 1.0]);
-    ylim([0 1.05]);
     hold off;
-    
-    % --- Subkuva 4: Pareto-front tilastot ---
-    subplot(2, 2, 4);
-    
-    stats_text = sprintf(...
-        '╔════════════════════════════════════════╗\n',...
-        '║  ANALYYSIN YHTEENVETO                   ║\n',...
-        '╠════════════════════════════════════════╣\n');
-    
-    stats_text = [stats_text sprintf(...
-        '║  Ratkaisuja yhteensä:        %4d kpl   ║\n', n_solutions)];
-    
-    stats_text = [stats_text sprintf(...
-        '║  Pareto-optimaaliset:        %4d kpl   ║\n', sum(pareto_indices))];
-    
-    pct = 100*sum(pareto_indices)/n_solutions;
-    stats_text = [stats_text sprintf(...
-        '║  Pareto-osuus:              %5.1f %%    ║\n', pct)];
-    
-    stats_text = [stats_text sprintf(...
-        '╠════════════════════════════════════════╣\n')];
-    
-    stats_text = [stats_text sprintf(...
-        '║  TOP 5 TOPSIS-RATKAISUT:                ║\n')];
-    
-    [~, sorted_idx] = sort(topsis_scores, 'descend');
-    for i = 1:min(5, n_solutions)
-        idx = sorted_idx(i);
-        pareto_marker = '  ';
-        if pareto_indices(idx)
-            pareto_marker = '★ ';  % Tähti = Pareto
-        end
-        stats_text = [stats_text sprintf('║ %d. Score=%.4f  %s                    ║\n', ...
-            i, topsis_scores(idx), pareto_marker)];
+    grid on;
+    xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
+    ylabel('TOPSIS', 'FontSize', 10, 'FontWeight', 'bold');
+    title(sprintf('TOPSIS-järjestys (n = %d)', n_show), 'FontSize', 11, 'FontWeight', 'bold');
+    legend('Location', 'best', 'FontSize', 9, 'Box', 'on');
+    set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
+
+    % Subplot 2..N: jokaiselle tavoitteelle oma y-akseli / oma paneeli
+    for obj_idx = 1:n_objectives
+        subplot(n_objectives + 1, 1, obj_idx + 1);
+        plot(ranks, ranked_objectives(:, obj_idx), '-', ...
+            'Color', colors_map(obj_idx, :), ...
+            'LineWidth', 1.8, ...
+            'DisplayName', objectives.names{obj_idx});
+        grid on;
+        xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
+        ylabel('Arvo', 'FontSize', 10, 'FontWeight', 'bold');
+        title(sprintf('Tavoite %d: %s', obj_idx, objectives.names{obj_idx}), ...
+            'FontSize', 11, 'FontWeight', 'bold');
+        legend('Location', 'best', 'FontSize', 9, 'Box', 'on');
+        set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
     end
-    
-    stats_text = [stats_text sprintf(...
-        '╠════════════════════════════════════════╣\n')];
-    
-    stats_text = [stats_text sprintf(...
-        '║  SELITYKSET:                            ║\n')];
-    stats_text = [stats_text sprintf(...
-        '║  ★ = Pareto-optimaalinen                ║\n')];
-    stats_text = [stats_text sprintf(...
-        '║  Score = TOPSIS-paremmuusindeksi        ║\n')];
-    stats_text = [stats_text sprintf(...
-        '║  Korkeampi piste = parempi ratkaisu    ║\n')];
-    stats_text = [stats_text sprintf(...
-        '╚════════════════════════════════════════╝\n')];
-    
-    % Yksinkertainen teksti-näyttö ilman text-funktiota
-    fprintf('\n%s\n', stats_text);
-    axis off;
-    title('📋 TILASTOT & YHTEENVETO', 'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
-    
+
+    sgtitle(sprintf('TOPSIS-rankattu tavoitenakyma, kaikki ratkaisut (n = %d)', n_show), ...
+        'FontSize', 14, 'FontWeight', 'bold');
+
+    % ===== IKKUNA 2: M_x-KOMPONENTIT RANKIN MUKAAN =====
+    fig2 = figure(2); clf;
+    set(fig2, 'Name', 'M_x-elementit rankin mukaan', 'NumberTitle', 'off', ...
+        'Color', [1 1 1], 'Position', [100 100 1400 850]);
+
+    component_labels = {
+        'M_x(1) = F_a',
+        'M_x(2) = F_b',
+        'M_x(3) = F_c',
+        'M_x(4) = F_d',
+        'M_x(5) = F_e',
+        'M_x(6) = F_f'
+    };
+
+    for k = 1:6
+        subplot(2, 3, k);
+        plot(ranks, ranked_solutions(:, k), 'o-', ...
+            'LineWidth', 2.0, ...
+            'MarkerSize', 6, ...
+            'Color', [0.1 0.35 0.75], ...
+            'DisplayName', component_labels{k});
+        grid on;
+        xlabel('Rank (1 = paras TOPSIS)', 'FontSize', 10, 'FontWeight', 'bold');
+        ylabel('Arvo', 'FontSize', 10, 'FontWeight', 'bold');
+        title(sprintf('%s rankin mukaan', component_labels{k}), ...
+            'FontSize', 11, 'FontWeight', 'bold');
+        legend('Location', 'best', 'FontSize', 9, 'Box', 'on');
+        set(gca, 'FontSize', 9, 'XLim', [1 n_show]);
+    end
+
+    sgtitle(sprintf('M_x-elementtien rankattu jakauma (n = %d)', n_show), ...
+        'FontSize', 14, 'FontWeight', 'bold');
 end

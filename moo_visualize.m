@@ -16,7 +16,8 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     n_solutions = size(engine.results.flattened_objectives, 1);
     
     % ===== KUVA 1: TOPSIS-pisteet vs ratkaisut =====
-    figure('Name', 'MOO Analysis - TOPSIS Ranking', 'NumberTitle', 'off');
+    fig1 = figure('Name', '🎯 MOO ANALYSIS - TOPSIS RANKING & PARETO', 'NumberTitle', 'off');
+    set(fig1, 'Color', [0.98 0.98 0.98]);  % Kevyt harmaa tausta
     
     % --- Subkuva 1: TOPSIS-ranking ---
     subplot(2, 2, 1);
@@ -25,19 +26,21 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     
     % Väritä bars: punainen = Pareto, sininen = muu
     colors_idx = ~pareto_indices(x_vals);
-    plot(x_vals(colors_idx), y_vals(colors_idx), 'bs', 'LineWidth', 2, 'MarkerSize', 10, ...
-        'DisplayName', 'Ei Pareto-optimal');
+    plot(x_vals(colors_idx), y_vals(colors_idx), 'bs', 'LineWidth', 2.5, 'MarkerSize', 12, ...
+        'DisplayName', '● Muu ratkaisu');
     hold on;
-    plot(x_vals(~colors_idx), y_vals(~colors_idx), 'r^', 'LineWidth', 2, 'MarkerSize', 12, ...
-        'DisplayName', 'Pareto-optimal');
+    plot(x_vals(~colors_idx), y_vals(~colors_idx), 'r^', 'LineWidth', 2.5, 'MarkerSize', 14, ...
+        'DisplayName', '★ Pareto-optimaalinen');
     
-    xlabel('Ranking (paras = 1)', 'FontSize', 11, 'FontWeight', 'bold');
-    ylabel('TOPSIS-piste', 'FontSize', 11, 'FontWeight', 'bold');
-    title(sprintf('Kuva 1: TOP %d TOPSIS-ratkaisut', top_n), 'FontSize', 12, 'FontWeight', 'bold');
-    legend('show', 'Location', 'best');
+    xlabel('Ranking (1=paras)', 'FontSize', 11, 'FontWeight', 'bold');
+    ylabel('TOPSIS-paremmuusindeksi [0...1]', 'FontSize', 11, 'FontWeight', 'bold');
+    title(sprintf('📊 TOP %d RATKAISUT - TOPSIS-JÄRJESTYS', top_n), 'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
+    legend('Location', 'best', 'FontSize', 10, 'Box', 'on', 'EdgeColor', 'k');
     grid on;
+    set(gca, 'GridColor', [0.8 0.8 0.8], 'GridAlpha', 0.3);
     ylim([min(y_vals)-0.02, max(y_vals)+0.02]);
-    set(gca, 'FontSize', 10);
+    set(gca, 'FontSize', 10, 'FontName', 'monospace');
+    hold off;
     
     % --- Subkuva 2: Tavoite-pareittain scatter ---
     subplot(2, 2, 2);
@@ -47,20 +50,24 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
         
         plot(engine.results.flattened_objectives(non_pareto_idx, 1), ...
              engine.results.flattened_objectives(non_pareto_idx, 2), ...
-             'bo', 'MarkerSize', 5, 'DisplayName', 'Muut ratkaisut');
+             'o', 'Color', [0.3 0.3 0.8], 'MarkerSize', 6, 'DisplayName', '● Muut ratkaisut');
         hold on;
         if length(pareto_idx) > 0
             plot(engine.results.flattened_objectives(pareto_idx, 1), ...
                  engine.results.flattened_objectives(pareto_idx, 2), ...
-                 'r*', 'MarkerSize', 15, 'LineWidth', 2, 'DisplayName', 'Pareto-front');
+                 '*', 'Color', [0.8 0.1 0.1], 'MarkerSize', 18, 'LineWidth', 2, 'DisplayName', '★ Pareto-front');
         end
         
-        xlabel(sprintf('%s →', objectives.names{1}), 'FontSize', 11, 'FontWeight', 'bold');
-        ylabel(sprintf('%s →', objectives.names{2}), 'FontSize', 11, 'FontWeight', 'bold');
-        title(sprintf('Kuva 2: Tavoitteiden %d vs %d scatter', 1, 2), 'FontSize', 12, 'FontWeight', 'bold');
-        legend('show', 'Location', 'best');
+        obj1_name = objectives.names{1};
+        obj2_name = objectives.names{2};
+        
+        xlabel(sprintf('%s', obj1_name), 'FontSize', 11, 'FontWeight', 'bold');
+        ylabel(sprintf('%s', obj2_name), 'FontSize', 11, 'FontWeight', 'bold');
+        title(sprintf('🎯 TAVOITTEIDEN SCATTER: %s vs %s', obj1_name, obj2_name), ...
+              'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
+        legend('Location', 'best', 'FontSize', 10, 'Box', 'on', 'EdgeColor', 'k');
         grid on;
-        set(gca, 'FontSize', 10);
+        set(gca, 'GridColor', [0.8 0.8 0.8], 'GridAlpha', 0.3, 'FontSize', 10, 'FontName', 'monospace');
     end
     
     % --- Subkuva 3: Tavoite-arvojen vertailu TOP-ratkaisuille ---
@@ -74,30 +81,53 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
     % Piirrä kuvaajia Octave-yhteensopiavasti
     hold off;
     x_positions = 1:size(obj_vals_norm, 1);
-    colors_map = hsv(objectives.n_objectives);
+    colors_map = [0.2 0.4 0.8;   % Sininen
+                   0.8 0.2 0.2;   % Punainen
+                   0.2 0.8 0.2;   % Vihreä
+                   0.8 0.8 0.2];  % Keltainen
     
-    for obj_idx = 1:objectives.n_objectives
-        plot(x_positions, obj_vals_norm(:, obj_idx), 'o-', 'Color', colors_map(obj_idx, :), ...
-            'LineWidth', 2.5, 'MarkerSize', 8, 'DisplayName', objectives.names{obj_idx});
+    for obj_idx = 1:min(objectives.n_objectives, size(colors_map, 1))
+        color = colors_map(obj_idx, :);
+        plot(x_positions, obj_vals_norm(:, obj_idx), 'o-', 'Color', color, ...
+            'LineWidth', 2.5, 'MarkerSize', 9, 'DisplayName', objectives.names{obj_idx});
         hold on;
     end
     
-    xlabel('TOP-ranking (parhain = 1)', 'FontSize', 11, 'FontWeight', 'bold');
-    ylabel('Normalisoidut tavoitearvot [0...1]', 'FontSize', 11, 'FontWeight', 'bold');
-    title(sprintf('Kuva 3: Tavoitteiden vertailu TOP %d -ratkaisuille', top_n), 'FontSize', 12, 'FontWeight', 'bold');
-    legend('show', 'Location', 'best');
+    xlabel('TOP-Ranking (1 = paras)', 'FontSize', 11, 'FontWeight', 'bold');
+    ylabel('Normalisoidut arvot [0...1]', 'FontSize', 11, 'FontWeight', 'bold');
+    title(sprintf('📈 TAVOITTEIDEN VERTAILU - TOP %d RATKAISUA', top_n), ...
+          'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
+    legend('Location', 'best', 'FontSize', 10, 'Box', 'on', 'EdgeColor', 'k');
     grid on;
-    set(gca, 'FontSize', 10);
+    set(gca, 'GridColor', [0.8 0.8 0.8], 'GridAlpha', 0.3, 'FontSize', 10, 'FontName', 'monospace');
+    set(gca, 'YTick', [0 0.2 0.4 0.6 0.8 1.0]);
+    ylim([0 1.05]);
+    hold off;
     
     % --- Subkuva 4: Pareto-front tilastot ---
     subplot(2, 2, 4);
     
     stats_text = sprintf(...
-        '┌─ ANALYYSIN YHTEENVETO ─────────────────┐\n',...
-        'Pareto-optimaaliset: %d / %d (%.1f%% )\n', ...
-        sum(pareto_indices), n_solutions, 100*sum(pareto_indices)/n_solutions);
+        '╔════════════════════════════════════════╗\n',...
+        '║  ANALYYSIN YHTEENVETO                   ║\n',...
+        '╠════════════════════════════════════════╣\n');
     
-    stats_text = [stats_text sprintf('\n├─ TOP 5 TOPSIS-RATKAISUT: ─────────────┤\n')];
+    stats_text = [stats_text sprintf(...
+        '║  Ratkaisuja yhteensä:        %4d kpl   ║\n', n_solutions)];
+    
+    stats_text = [stats_text sprintf(...
+        '║  Pareto-optimaaliset:        %4d kpl   ║\n', sum(pareto_indices))];
+    
+    pct = 100*sum(pareto_indices)/n_solutions;
+    stats_text = [stats_text sprintf(...
+        '║  Pareto-osuus:              %5.1f %%    ║\n', pct)];
+    
+    stats_text = [stats_text sprintf(...
+        '╠════════════════════════════════════════╣\n')];
+    
+    stats_text = [stats_text sprintf(...
+        '║  TOP 5 TOPSIS-RATKAISUT:                ║\n')];
+    
     [~, sorted_idx] = sort(topsis_scores, 'descend');
     for i = 1:min(5, n_solutions)
         idx = sorted_idx(i);
@@ -105,17 +135,27 @@ function moo_visualize(engine, objectives, topsis_scores, pareto_indices, top_n)
         if pareto_indices(idx)
             pareto_marker = '★ ';  % Tähti = Pareto
         end
-        stats_text = [stats_text sprintf('│ %d. Score=%.4f %s\n', i, topsis_scores(idx), pareto_marker)];
+        stats_text = [stats_text sprintf('║ %d. Score=%.4f  %s                    ║\n', ...
+            i, topsis_scores(idx), pareto_marker)];
     end
     
-    stats_text = [stats_text sprintf('├─ SELITYKSET: ─────────────────────────┤\n')];
-    stats_text = [stats_text sprintf('│ ★ = Pareto-optimaalinen                │\n')];
-    stats_text = [stats_text sprintf('│ Score = TOPSIS-paremmuusindeksi        │\n')];
-    stats_text = [stats_text sprintf('└────────────────────────────────────────┘\n')];
+    stats_text = [stats_text sprintf(...
+        '╠════════════════════════════════════════╣\n')];
+    
+    stats_text = [stats_text sprintf(...
+        '║  SELITYKSET:                            ║\n')];
+    stats_text = [stats_text sprintf(...
+        '║  ★ = Pareto-optimaalinen                ║\n')];
+    stats_text = [stats_text sprintf(...
+        '║  Score = TOPSIS-paremmuusindeksi        ║\n')];
+    stats_text = [stats_text sprintf(...
+        '║  Korkeampi piste = parempi ratkaisu    ║\n')];
+    stats_text = [stats_text sprintf(...
+        '╚════════════════════════════════════════╝\n')];
     
     % Yksinkertainen teksti-näyttö ilman text-funktiota
-    fprintf('%s', stats_text);
+    fprintf('\n%s\n', stats_text);
     axis off;
-    title('Kuva 4: Analyysitilastot', 'FontSize', 12, 'FontWeight', 'bold');
+    title('📋 TILASTOT & YHTEENVETO', 'FontSize', 13, 'FontWeight', 'bold', 'Color', [0.2 0.2 0.2]);
     
 end

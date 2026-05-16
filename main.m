@@ -19,9 +19,28 @@ fprintf('  🎯 Kaikki parametrit YHDESSÄ PAIKASSA\n\n');
 % Lataa konfiguraatio (KAIKKI parametrit täällä!)
 config = design_variables_config();
 
-% Ekstraktoi eri muotoihin
-[all_params, varying_names, varying_ranges, varying_n_points, fixed_names] = ...
-    extract_design_variables(config);
+% Ekstraktoi eri muotoihin - käytä purettuja arvoja
+all_params = struct();
+all_params.A = config.static.A;
+all_params.H = config.static.H;
+all_params.K = config.static.K;
+all_params.F_1 = config.static.F_1;
+all_params.Fg_1 = config.static.Fg_1;
+all_params.Fg_2 = config.static.Fg_2;
+all_params.J = config.static.J;
+
+% Dynaamiset parametrit
+all_params.B = config.dynamics.B.min;
+all_params.G = config.dynamics.G.min;
+
+% Määritä mitä vaihtelee
+varying_names = {'B', 'G'};
+varying_ranges = {[config.dynamics.B.min, config.dynamics.B.max], ...
+                   [config.dynamics.G.min, config.dynamics.G.max]};
+varying_n_points = [config.dynamics.B.n_points, config.dynamics.G.n_points];
+
+% Määritä mitä on kiinteitä
+fixed_names = {'A', 'H', 'K', 'F_1', 'Fg_1', 'Fg_2', 'J'};
 
 % Näytä konfiguraatio
 fprintf('%s\n', repmat('-', 1, 70));
